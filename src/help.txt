@@ -1,0 +1,71 @@
+Brainiac {s} - Brainfuck interpreter/compiler/profiler/transpiler
+
+Usage: brainiac [options] [sourcefile]
+Where sourcefile is a Brainfuck source code file. If not given,
+source code will instead be read from stdin and executed directly.
+
+Brainfuck language reference:
+ + Increment cell by one
+ - Decrement cell by one
+ > Switch to next cell
+ < Switch to previous cell
+ . Print cell
+ , Read input character into cell
+ [ Jump to matching ] when current cell is zero
+ ] Jump to matching [ when current cell is not zero
+
+Options:
+  --interpret (default)
+      Interpret source code.
+  --compile
+      Compile source code for the native architecture and run it.
+      Supported architectures: riscv64, x86_64.
+  --profile
+      After interpreting the code, write HTML performance report of
+      the source code into a file named <sourcefile>.profile.htm.
+  --transpile
+      Translate given Brainfuck source code into C code and print
+      a standalone C file ready for compilation. 
+  --hexdump
+      Instead of running the compiled executable print generated
+      machine code in hexadecimal form.
+  --interactive
+      After executing the sourcefile, switch to interactive mode.
+  --limit=<n>
+      Limit execution to n (optimized) instructions.
+      Only available with --interpret and --profile.
+  --cell=8|16|32|64 (default: 8)
+      Memory cell size in bits.
+  --memory=<n> (default: 1000000)
+      Number of memory cells. Start cell is in the middle.
+      As the operating system's paging mechanism is used to sandbox
+      the Brainfuck application, the number of cells will be rounded
+      up to match the minimum page size.
+  -O0 Disable all optimizations.
+  -O1 Allow simple optimizations:
+       - Fold sequences of "+", "-", ">" and "<" into one opcode.
+  -O2 Allow loop optimizations:
+       - Convert "[-]" loops followed by one or more "+" or "-"
+         into a single set value operation.
+  -O3 Allow advanced optimizations:
+       - Convert loops like "[<->>++>>+++<<<-]" into one or more
+         multiply-accumulate (MAC) operations followed by set=0.
+  -O4 (default)
+       - Merge move operations into other operators as an offset.
+  --io.binary
+      Print cells directly as bytes.
+  --io.prompt
+      Print prompt symbol when the application does read operations.
+  --io.eof=xx (default: 00)
+      Hexadecimal value of byte returned on read operations on EOF.
+      When not in interactive mode, reading again after receiving
+      EOF will exit the program.
+  --verbose
+      Print additional information like number of parsed
+      instructions, optimization results etc.
+  --quiet
+      Do not print first status line with execution information.
+  -h, --help
+      Show this help text.
+  --version
+      Show brainiac version.

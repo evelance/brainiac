@@ -1,0 +1,46 @@
+Mandelbrot.b fastest of 3
+zig build -Doptimize=ReleaseFast
+
+x86_64 | Zen2 4.4GHz | gcc 15.1.1 / clang 19.1.7
+    brainiac interpret -O0   21208ms
+    brainiac interpret -O1    8371ms
+    brainiac interpret -O2    8189ms
+    brainiac interpret -O3    6280ms
+    brainiac interpret -O4    5767ms
+    brainiac compile -O0      2400ms
+    brainiac compile -O1       778ms
+    brainiac compile -O2       762ms
+    brainiac compile -O3       509ms
+    brainiac compile -O4       457ms
+    gcc -O3 transpile_O0.c     677ms
+    gcc -O3 transpile_O1.c     681ms
+    gcc -O3 transpile_O2.c     610ms
+    gcc -O3 transpile_O3.c     376ms
+    gcc -O3 transpile_O4.c     391ms
+    clang -O3 transpile_O0.c   801ms
+    clang -O3 transpile_O1.c   808ms
+    clang -O3 transpile_O2.c   776ms
+    clang -O3 transpile_O3.c   690ms
+    clang -O3 transpile_O4.c   370ms
+
+riscv64 | Ky X1 1.6GHz | gcc 13.3.0 | clang 18.1.3
+    brainiac interpret -O0  112370ms
+    brainiac interpret -O1   33238ms
+    brainiac interpret -O2   32676ms
+    brainiac interpret -O3   32532ms
+    brainiac interpret -O4   27161ms
+    brainiac compile -O0     11526ms
+    brainiac compile -O1      4125ms
+    brainiac compile -O2      3988ms
+    brainiac compile -O3      4416ms
+    brainiac compile -O4      4293ms
+    gcc -O3 transpile_O0.c    2775ms
+    gcc -O3 transpile_O1.c    2765ms
+    gcc -O3 transpile_O2.c    2343ms
+    gcc -O3 transpile_O3.c    2052ms
+    gcc -O3 transpile_O4.c    2140ms
+    clang -O3 transpile_O0.c  3261ms
+    clang -O3 transpile_O1.c  3328ms
+    clang -O3 transpile_O2.c  3241ms
+    clang -O3 transpile_O3.c  3290ms
+    clang -O3 transpile_O4.c  2690ms

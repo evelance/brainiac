@@ -1,0 +1,22 @@
+
+for i in {0..4}; do
+    echo "Transpiling -O$i"
+    ./brainiac --transpile -O$i Mandelbrot.b > Mandelbrot_O$i.c
+    gcc -O3 Mandelbrot_O$i.c -o Mandelbrot_gcc_O$i
+    clang -O3 Mandelbrot_O$i.c -o Mandelbrot_clang_O$i
+done
+
+for i in {0..4}; do
+    echo "====== brainiac --interpret -O$i"
+    ./brainiac --verbose --interpret -O$i Mandelbrot.b > /dev/null
+    sleep 5
+    echo "====== brainiac --compile -O$i"
+    ./brainiac --verbose --compile -O$i Mandelbrot.b > /dev/null
+    sleep 5
+    echo "====== gcc -O$i"
+    time ./Mandelbrot_gcc_O$i > /dev/null
+    sleep 5
+    echo "====== clang -O$i"
+    time ./Mandelbrot_clang_O$i  > /dev/null
+    sleep 5
+done

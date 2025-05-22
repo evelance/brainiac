@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <style>
+        body { margin:0; }
+        .ins {
+            position:absolute;display:inline-flex;justify-content:center;align-items:center;flex-direction:column;
+            text-align: center;
+            width:35px;height:32px;background:#eee;font:16px monospace;cursor:default;
+            border:1px solid transparent;line-height:1em;
+        }
+        .ins > div { font-size:12px;margin-top:4px; }
+        .off .ins {
+            height:45px;
+        }
+        .highlight { margin:-2px;border:3px solid #06f; }
+    </style>
+</head>
+<body>
+<script>
+const {source_file, program, profile} = PROFILER_DATA;
+document.title = "Profile of " + source_file;
+
+// Synchronize with Zig Parser.Instruction!
+const instruction_add           = 0;
+const instruction_move          = 1;
+const instruction_print         = 2;
+const instruction_read          = 3;
+const instruction_jump_forward  = 4;
+const instruction_jump_back     = 5;
+const instruction_set           = 6;
+const instruction_mac           = 7;
+const instruction_symbol = ["+", ">", ".", ",", "[", "]", "=", "m"];
+
+// Find maximum and minimum count
+let max_count, min_count, count_span;
+for (let i = 0; i < program.length; ++i) {
+    const count = profile[i];
+    if (i === 0 || (count > max_count)) {
+        max_count = count;
+    }
+    if (i === 0 || (count < min_count)) {
+        min_count = count;
+    }
+}
+count_span = max_count - min_count;
+
+// Return color string for a given number from 0..1 
+// rgb(0,150,28) 0%, rgb(234,255,0) 33%, rgb(255,157,0) 66%, rgb(255,0,106)
+function greenRedGradientColor(v) {
+    v = Math.max(Math.min(v, 1), 0);
+    let r, g, b;
+    if (v <= 0.33) {
+        const p = v / 0.33;
+        r =       p * 234;
+        g = 150 + p * (255 - 150);
+        b = 28  - p * 28;
+    } else if (v <= 0.66) {
+        const p = (v - 0.33) / 0.33;
+        r = 234 + p * (255 - 234);
+        g = 255 - p * (255 - 157);
+        b = 0;
+    } else {
+        const p = (v - 0.66) / 0.33;
+        r = 255;
+        g = 157 - p * 157;
+        b =       p * 106;
+    }
+    return `rgb(${r},${g},${b})`;
+}
+
+// Save references to all created elements
+const instructions = [];
+
+// Don't show cell offsets when they are all zero
+let have_offsets = false;
+for (let i = 0; i < program.length; ++i) {
+    const [opcode, offset] = program[i];
+    if (offset !== 0) {
+        have_offsets = true;
+        break;
+    }
+}
+
+if (have_offsets) {
+    document.body.classList.add("off");
+}
+
+// Create colored instruction text nodes
+const tile_width = 35, tile_height = have_offsets ? 45 : 32;
+const tiles_per_row = (window.innerWidth / (tile_width + 4)) - 1;
+let row = 0, column = 0;
+for (let i = 0; i < program.length; ++i) {
+    const [opcode, offset, value, value2] = program[i];
+    const count = profile[i];
+    
+    // Create absolute positioned box (for performance reasons)
+    let el = document.createElement("div");
+    el.className = "ins";
+    el.style.left = (column * (tile_width + 4) + 5) + "px";
+    el.style.top = (row * (tile_height + 4) + 5) + "px";
+    if (++column > tiles_per_row) {
+        column = 0;
+        row++;
+    }
+    
+    // Text content: Opcode symbol with optional extra data
+    if (opcode === instruction_add) {
+        el.innerText = ((value < 0) ? "-" : "+") + ((value === 1 || value === -1) ? "" : Math.abs(value));
+    } else if (opcode === instruction_move) {
+        el.innerText = ((value < 0) ? "<" : ">") + ((value === 1 || value === -1) ? "" : Math.abs(value));
+    } else if (opcode === instruction_set) {
+        el.innerText = "=" + value;
+    } else if (opcode === instruction_mac) {
+        el.innerText = "mac\r\n" + value + "," + value2;
+        el.style.fontSize = "12px";
+    } else {
+        el.innerText = instruction_symbol[opcode];
+    }
+    
+    // Background color to indicate execution count
+    if (count > 0) {
+        let color = (count - min_count) / count_span;
+        el.style.backgroundColor = greenRedGradientColor(color);
+        el.style.color = (color > 0.2 && color < 0.8) ? "black" : "white";
+    } else {
+        el.style.backgroundColor = "#eee";
+        el.style.color = "black";
+    }
+    
+    // Tooltip
+    el.title = "#" + i + "\r\nExecuted " + count.toLocaleString() + " times";
+    if (opcode === instruction_add || opcode === instruction_move ||
+        opcode === instruction_set || opcode === instruction_mac) {
+        // Some opcodes may be hard to read
+        el.title = el.title + "\r\n" + el.innerText;
+    }
+    if (opcode === instruction_mac) {
+        el.title = el.title + "\r\ncell[" + value + "] += cell[" + offset +"] * " + value2;
+    }
+    
+    // Optional cell offset
+    if (have_offsets) {
+        const div = document.createElement("div");
+        div.innerText = "@" + offset;
+        el.appendChild(div);
+    }
+    
+    document.body.appendChild(el);
+    instructions[i] = el;
+}
+
+// Highlight jump target on mouseover
+const sticky = new Set();
+for (let i = 0; i < program.length; ++i) {
+    const instruction = program[i];
+    const [opcode, offset, target] = instruction;
+    if (opcode === instruction_jump_forward || opcode === instruction_jump_back) {
+        let add_highlight = () => {
+            instructions[i].classList.add("highlight");
+            instructions[target].classList.add("highlight");
+        };
+        let remove_highlight = () => {
+            if (sticky.has(i) || sticky.has(target))
+                return;
+            instructions[i].classList.remove("highlight");
+            instructions[target].classList.remove("highlight");
+        }
+        instructions[i].addEventListener("mouseenter", add_highlight);
+        instructions[i].addEventListener("mouseleave", remove_highlight);
+        instructions[i].addEventListener("click", () => {
+            if (sticky.has(i) || sticky.has(target)) {
+                sticky.delete(i);
+                sticky.delete(target);
+                remove_highlight();
+            } else {
+                sticky.add(i);
+                sticky.delete(target);
+                add_highlight();
+            }
+        });
+    }
+}
+</script>
+</body>
+</html>
