@@ -12,6 +12,10 @@ execution: enum {
     compile,
     transpile,
 },
+transpile_to: enum {
+    c,
+    zig,
+},
 quiet: bool,
 verbose: bool,
 interactive: bool,
@@ -33,6 +37,7 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
         .allocator = allocator,
         .input_file = null,
         .execution = .interpret,
+        .transpile_to = .c,
         .quiet = false,
         .verbose = false,
         .interactive = false,
@@ -57,7 +62,7 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
             continue;
         }
         if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
-            std.debug.print(@embedFile("help.txt"), .{ main.version });
+            std.debug.print(@embedFile("templates/help.txt"), .{ main.version });
             std.process.exit(1);
         } else if (std.mem.eql(u8, arg, "--version")) {
             std.debug.print("Brainiac {s}\n", .{ main.version });
@@ -66,7 +71,16 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
             args.execution = .interpret;
         } else if (std.mem.eql(u8, arg, "--compile")) {
             args.execution = .compile;
-        } else if (std.mem.eql(u8, arg, "--transpile")) {
+        } else if (std.mem.startsWith(u8, arg, "--transpile=")) {
+            const param = arg[12..];
+            if (std.mem.eql(u8, param, "c") or std.mem.eql(u8, param, "C")) {
+                args.transpile_to = .c;
+            } else if (std.mem.eql(u8, param, "zig") or std.mem.eql(u8, param, "Zig")) {
+                args.transpile_to = .zig;
+            } else {
+                std.debug.print("Transpiler: Unknown language '{s}'\n", .{ param });
+                std.process.exit(1);
+            }
             args.execution = .transpile;
         } else if (std.mem.eql(u8, arg, "--profile")) {
             profile = true;

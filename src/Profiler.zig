@@ -126,7 +126,7 @@ pub fn report(self: *@This(), output_path: []const u8, source_file: ?[]const u8)
     const file = try std.fs.cwd().createFile(output_path, .{});
     defer file.close();
     
-    var sequence = std.mem.splitSequence(u8, @embedFile("profiler.tpl.htm"), "PROFILER_DATA");
+    var sequence = std.mem.splitSequence(u8, @embedFile("templates/profiler.tpl.htm"), "PROFILER_DATA");
     try file.writeAll(sequence.first());
     while (sequence.next()) |chunk| {
         try self.writeJSON(source_file, file.writer());

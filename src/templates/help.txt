@@ -23,14 +23,15 @@ Options:
   --profile
       After interpreting the code, write HTML performance report of
       the source code into a file named <sourcefile>.profile.htm.
-  --transpile
-      Translate given Brainfuck source code into C code and print
-      a standalone C file ready for compilation. 
+  --transpile=C|Zig
+      Translate given optimized Brainfuck code into another language.
+      The result is a standalone file that can be compiled directly.
   --hexdump
       Instead of running the compiled executable print generated
       machine code in hexadecimal form.
   --interactive
-      After executing the sourcefile, switch to interactive mode.
+      After executing the sourcefile, switch to REPL (read-evaluate-
+      print loop) mode.
   --limit=<n>
       Limit execution to n (optimized) instructions.
       Only available with --interpret and --profile.

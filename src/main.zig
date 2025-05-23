@@ -180,7 +180,10 @@ pub fn runProgram(allocator: std.mem.Allocator, args: Arguments, comptime T: typ
             }
         },
         .transpile => {
-            try Transpiler.writeC(args.cell_type, args.mem_size, args.start_cell, program, std.io.getStdOut().writer());
+            try switch (args.transpile_to) {
+                .zig => Transpiler.writeZig(args.cell_type, args.mem_size, args.start_cell, program, std.io.getStdOut().writer()),
+                .c => Transpiler.writeC(args.cell_type, args.mem_size, args.start_cell, program, std.io.getStdOut().writer()),
+            };
         },
     }
 }
