@@ -7,6 +7,7 @@ const CellType = @import("Memory.zig").CellType;
 allocator: std.mem.Allocator,
 /// Path to input file or null for stdin
 input_file: ?[]u8,
+output_file: ?[]u8,
 execution: enum {
     interpret,
     compile,
@@ -36,6 +37,7 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
     var args: @This() = .{
         .allocator = allocator,
         .input_file = null,
+        .output_file = null,
         .execution = .interpret,
         .transpile_to = .c,
         .quiet = false,
@@ -71,6 +73,15 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
             args.execution = .interpret;
         } else if (std.mem.eql(u8, arg, "--compile")) {
             args.execution = .compile;
+        } else if (std.mem.startsWith(u8, arg, "--compile=")) {
+            args.execution = .compile;
+            const param = arg[10..];
+            if (args.output_file == null) {
+                args.output_file = try allocator.dupe(u8, param);
+            } else {
+                std.debug.print("Only one output file allowed.\n", .{});
+                std.process.exit(1);
+            }
         } else if (std.mem.startsWith(u8, arg, "--transpile=")) {
             const param = arg[12..];
             if (std.mem.eql(u8, param, "c") or std.mem.eql(u8, param, "C")) {
@@ -180,15 +191,16 @@ pub fn parse(allocator: std.mem.Allocator) !@This() {
 }
 
 pub fn deinit(self: *@This()) void {
-    if (self.input_file) |_f| self.allocator.free(_f);
-    if (self.profile) |_f| self.allocator.free(_f);
+    if (self.output_file) |str| self.allocator.free(str);
+    if (self.input_file) |str| self.allocator.free(str);
+    if (self.profile) |str| self.allocator.free(str);
 }
 
 pub fn setProfileFile(self: *@This()) !void {
-    const profile = if (self.input_file) |f|
-        try std.mem.concat(self.allocator, u8, &[_][]const u8 { f, ".profile.htm" })
+    const profile = if (self.input_file) |input_file|
+        try std.mem.concat(self.allocator, u8, &[_][]const u8 { input_file, ".profile.htm" })
      else
         try self.allocator.dupe(u8, "profile.htm");
-    if (self.profile) |_f| self.allocator.free(_f);
+    if (self.profile) |str| self.allocator.free(str);
     self.profile = profile;
 }

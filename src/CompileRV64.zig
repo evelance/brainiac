@@ -5,6 +5,7 @@
 const std = @import("std");
 const rv64 = @import("RV64.zig");
 const RV_X = rv64.RV_X;
+const CompileError = @import("Compiler.zig").CompileError;
 const Instruction = @import("Opcode.zig").Instruction;
 const CellType = @import("Memory.zig").CellType;
 
@@ -411,6 +412,9 @@ pub fn compile(allocator: std.mem.Allocator, program: []Instruction, cell_type: 
     
     const cell_size: isize = switch (cell_type) { .c8 => 1, .c16 => 2, .c32 => 4, .c64 => 8 };
     for (program) |instruction| {
+        const full_cell_off = instruction.off * cell_size;
+        if (! fitsInt(full_cell_off, i12))
+            return CompileError.UnsupportedLargeOffset;
         const cell_off: i12 = @intCast(instruction.off * cell_size);
         switch (instruction.op) {
             .add => |value| {
@@ -463,7 +467,7 @@ pub fn compile(allocator: std.mem.Allocator, program: []Instruction, cell_type: 
                 } else {
                     try rvasm.li(.a2, @intCast(target_off));
                     try rvasm.add(.a2, .a2, .s0);
-                    try rvasm.loadCell(cell_type, .a2, .a0, 0);
+                    try rvasm.loadCell(cell_type, .a0, .a2, 0);
                 }
                 
                 // Load current cell into a1

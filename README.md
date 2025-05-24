@@ -36,7 +36,12 @@ https://img.shields.io/badge/license-AGPL-green.svg
 
 ## Status
 
-Tested platforms: Linux, Windows.
+Supported platforms:
+
+| OS      | x86_64         | riscv64 |
+|---------|----------------|---------|
+| Linux   | `Yes`          | `Yes`   |
+| Windows | `Yes`          | ?!      |
 
 Builds tested for: Zig 0.13, Zig 0.15.
 
@@ -120,8 +125,6 @@ Brainiac can run Brainfuck programs interactively in the terminal, or from a fil
 When a file is given as input, piped input will be treated as program inputs. Files can also be profiled and transpiled.
 
 Supported cell sizes are 8, 16, 32, and 64 bit. Memory size and EOF character are configurable.
-
-For the complete list of features, [see the help text](./src/help.txt) (or use `brainiac --help`).
 
 ### Interactive Mode
 
@@ -242,8 +245,9 @@ zig run Mandelbrot.zig
 ```
   --interpret (default)
       Interpret source code.
-  --compile
-      Compile source code for the native architecture and run it.
+  --compile[=outfile]
+      Compile source code for the native architecture.
+      If outfile is not given, run it directly (JIT mode).
       Supported architectures: riscv64, x86_64.
   --profile
       After interpreting the code, write HTML performance report of

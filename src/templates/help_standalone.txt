@@ -1,0 +1,20 @@
+Brainfuck application
+
+This is a natively compiled Brainfuck application.
+
+Options:
+  --memory=<n> (default: 1000000)
+      Number of memory cells. Start cell is in the middle.
+      As the operating system's paging mechanism is used to sandbox
+      the Brainfuck application, the number of cells will be rounded
+      up to match the minimum page size.
+  --io.binary
+      Print cells directly as bytes.
+  --io.prompt
+      Print prompt symbol when the application does read operations.
+  --io.eof=xx (default: 00)
+      Hexadecimal value of byte returned on read operations on EOF.
+      When not in interactive mode, reading again after receiving
+      EOF will exit the program.
+  -h, --help
+      Show this help text.

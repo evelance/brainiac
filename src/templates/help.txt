@@ -17,8 +17,9 @@ Brainfuck language reference:
 Options:
   --interpret (default)
       Interpret source code.
-  --compile
-      Compile source code for the native architecture and run it.
+  --compile[=outfile]
+      Compile source code for the native architecture.
+      If outfile is not given, run it directly (JIT mode).
       Supported architectures: riscv64, x86_64.
   --profile
       After interpreting the code, write HTML performance report of

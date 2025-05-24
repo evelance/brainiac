@@ -12,6 +12,7 @@ const CC: std.builtin.CallingConvention = if (builtin.cpu.arch == .x86_64) .SysV
 
 pub const CompileError = error {
     UnsupportedArchitecture,
+    UnsupportedLargeOffset,
 };
 
 pub fn getNativeArchName() []const u8 {
@@ -30,21 +31,6 @@ pub fn compile(allocator: std.mem.Allocator, program: []Instruction, cell_type: 
         .x86_64 => CompileX86_64.compile(allocator, program, cell_type),
         else => CompileError.UnsupportedArchitecture,
     };
-}
-
-/// Print hexdump of generated machine code (e.g. to disassemble it)
-pub fn hexdump(executable: []const u8) !void {
-    var line: usize = 0;
-    for (executable) |byte| {
-        line += 1;
-        if (line >= 32) {
-            line = 0;
-            std.debug.print("{x:0>2}\n", .{ byte });
-        } else {
-            std.debug.print("{x:0>2} ", .{ byte });
-        }
-    }
-    std.debug.print("\n", .{});
 }
 
 /// Map executable into current address space and run it.
@@ -86,4 +72,44 @@ fn operatorRead() callconv(CC) u8 {
 /// Just a wrapper for the desired calling convention.
 fn operatorPrint(value: u8) callconv(CC) void {
     IO.operatorPrint(value);
+}
+
+/// Print hexdump of generated machine code (e.g. to disassemble it)
+pub fn hexdump(executable: []const u8) !void {
+    var line: usize = 0;
+    for (executable) |byte| {
+        line += 1;
+        if (line >= 32) {
+            line = 0;
+            std.debug.print("{x:0>2}\n", .{ byte });
+        } else {
+            std.debug.print("{x:0>2} ", .{ byte });
+        }
+    }
+    std.debug.print("\n", .{});
+}
+
+/// Create standalone executable for the user application.
+pub fn makeStandaloneExecutable(executable: []const u8, output_file: std.fs.File, comptime T: type, danger_zone_size: usize) !void {
+    var len: [@sizeOf(u64)]u8 = undefined;
+    var dzs: [@sizeOf(u64)]u8 = undefined;
+    std.mem.writePackedInt(u64, &len, 0, executable.len, std.builtin.Endian.little);
+    std.mem.writePackedInt(u64, &dzs, 0, danger_zone_size, std.builtin.Endian.little);
+    
+    const runtime = switch (builtin.os.tag) {
+        .windows => @embedFile("blob/standalone_windows_amd64.blob"),
+        else => switch (builtin.cpu.arch) {
+            .riscv64 => @embedFile("blob/standalone_linux_riscv64.blob"),
+            .x86_64 => @embedFile("blob/standalone_linux_amd64.blob"),
+            else => return CompileError.UnsupportedArchitecture,
+        },
+    };
+    
+    // Append generated machine code and length to prebuilt
+    // runtime executable and write it to the output file.
+    try output_file.writeAll(runtime);
+    try output_file.writeAll(executable);
+    try output_file.writer().writeByte(switch (T) { u8 => 8, u16 => 16, u32 => 32, u64 => 64, else => unreachable });
+    try output_file.writeAll(&dzs);
+    try output_file.writeAll(&len);
 }

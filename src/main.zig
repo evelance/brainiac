@@ -13,7 +13,7 @@ const Memory = @import("Memory.zig");
 const IO = @import("IO.zig");
 
 // Brainiac version
-pub const version = "0.9.2";
+pub const version = "0.9.3";
 
 pub fn main() !void {
     // Allocator for everything
@@ -48,6 +48,7 @@ pub fn main() !void {
 /// TTY  inputs  source+inputs  source+inputs
 /// Pipe inputs  source         not allowed
 pub fn cellMain(allocator: std.mem.Allocator, args: Arguments, comptime T: type, cellinfo: []const u8) !void {
+    // Setup protected memory area
     try Memory.enableCustomSEGVHandler();
     var memory = try Memory.Memory(T).init(args.mem_size, args.start_cell);
     defer memory.deinit();
@@ -84,7 +85,7 @@ pub fn cellMain(allocator: std.mem.Allocator, args: Arguments, comptime T: type,
         }
         defer allocator.free(source);
         
-        // Parse and execute as one chunk
+        // Parse entire file as one chunk
         if (args.verbose) {
             std.debug.print("Parsing {d} bytes\n", .{ source.len });
         }
@@ -92,8 +93,7 @@ pub fn cellMain(allocator: std.mem.Allocator, args: Arguments, comptime T: type,
         try parser.optimize(args.optimization_level, args.verbose);
         const program = try parser.finalize();
         defer allocator.free(program);
-        try memory.updateDangerZone(parser.max_off, args.verbose);
-        try runProgram(allocator, args, T, &memory, program);
+        try runProgram(allocator, args, T, &memory, parser.max_off, program);
         if (!args.interactive or !std.posix.isatty(std.io.getStdIn().handle))
             return;
     }
@@ -141,15 +141,16 @@ pub fn cellMain(allocator: std.mem.Allocator, args: Arguments, comptime T: type,
         try parser.optimize(args.optimization_level, args.verbose);
         const program = try parser.finalize();
         defer allocator.free(program);
-        try memory.updateDangerZone(parser.max_off, args.verbose);
-        try runProgram(allocator, args, T, &memory, program);
+        try runProgram(allocator, args, T, &memory, parser.max_off, program);
     }
 }
 
 /// Run finalized program
-pub fn runProgram(allocator: std.mem.Allocator, args: Arguments, comptime T: type, memory: *Memory.Memory(T), program: []Instruction) !void {
+pub fn runProgram(allocator: std.mem.Allocator, args: Arguments, comptime T: type, memory: *Memory.Memory(T),
+                  danger_zone_size: usize, program: []Instruction) !void {
     switch (args.execution) {
         .interpret => {
+            try memory.updateDangerZone(danger_zone_size, args.verbose);
             if (args.profile) |profile_file| {
                 var profiler = try Profiler.init(allocator, program);
                 defer profiler.deinit();
@@ -169,13 +170,24 @@ pub fn runProgram(allocator: std.mem.Allocator, args: Arguments, comptime T: typ
                 if (err == Compiler.CompileError.UnsupportedArchitecture) {
                     std.debug.print("Error: Machine architecture {any} not supported!\n", .{ builtin.cpu.arch });
                     return;
+                } else if (err == Compiler.CompileError.UnsupportedLargeOffset) {
+                    std.debug.print("Error: Application is too big to compile!\nTry using a lower optimization level.\n", .{});
+                    return;
                 }
                 return err;
             };
             defer allocator.free(text);
             if (args.hexdump) {
                 try Compiler.hexdump(text);
+            } else if (args.output_file) |output_file| {
+                // Create and open executable file for writing
+                const file = try std.fs.cwd().createFile(output_file,
+                    if (comptime builtin.os.tag == .windows) .{} else .{ .mode = 0o755 });
+                defer file.close();
+                try Compiler.makeStandaloneExecutable(text, file, T, danger_zone_size);
+                std.debug.print("Created executable: {s}\n", .{ output_file });
             } else {
+                try memory.updateDangerZone(danger_zone_size, args.verbose);
                 try Compiler.execute(text, T, memory, args.verbose);
             }
         },
